@@ -2174,10 +2174,8 @@ bool RenderLayer::updateLayerPosition(OptionSet<UpdateLayerPositionsFlag>* flags
     auto localPoint = layerRect.location();
 
     bool geometryChanged = false;
-    bool sizeChanged = false;
     if (IntSize newSize(layerRect.width().toInt(), layerRect.height().toInt()); newSize != size()) {
         geometryChanged = true;
-        sizeChanged = true;
         setSize(newSize);
 
 #if LAYER_POSITIONS_ASSERT_ENABLED
@@ -2240,9 +2238,6 @@ bool RenderLayer::updateLayerPosition(OptionSet<UpdateLayerPositionsFlag>* flags
     } else if (!m_contentsScrollingScope || m_contentsScrollingScope != m_boxScrollingScope)
         m_contentsScrollingScope = m_boxScrollingScope;
 
-    auto oldLocationWithoutInFlowOffset = location() - m_offsetForPosition;
-    auto newLocationWithoutInFlowOffset = localPoint;
-
     if (renderer().isInFlowPositioned()) {
         if (auto* boxModelObject = dynamicDowncast<RenderBoxModelObject>(renderer())) {
             auto newOffset = boxModelObject->offsetForInFlowPosition();
@@ -2261,12 +2256,9 @@ bool RenderLayer::updateLayerPosition(OptionSet<UpdateLayerPositionsFlag>* flags
     if (geometryChanged && compositor().hasContentCompositingLayers()) {
         if (isComposited())
             setNeedsCompositingGeometryUpdate();
-        // Scrolling only changed the sticky offset (flags is null on the scroll path).
-        bool onlyStickyOffsetChanged = !flags && !sizeChanged && oldLocationWithoutInFlowOffset == newLocationWithoutInFlowOffset
-            && compositor().canSkipRequirementsTraversalForStickyOffsetChange(*this);
         // This layer's footprint can affect the location of a composited descendant (which may be a sibling in z-order),
         // so trigger a descendant walk from the enclosing stacking context.
-        if (auto* sc = stackingContext(); sc && !onlyStickyOffsetChanged) {
+        if (auto* sc = stackingContext()) {
             sc->setDescendantsNeedCompositingRequirementsTraversal();
             sc->setDescendantsNeedUpdateBackingAndHierarchyTraversal();
         }
